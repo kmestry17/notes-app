@@ -12,6 +12,7 @@ mongoose
   .catch((err) => console.error("Database connection error:", err));
 
 const User = require("./models/user.model");
+const Note = require("./models/note.model");
 
 const express = require("express");
 const cors = require("cors");
@@ -62,7 +63,7 @@ app.post("/create-account", async (req, res) => {
     await user.save();
 
     const accessToken = jwt.sign(
-      { user: user._id },
+      { userId: user._id.toString() },
       process.env.ACCESS_TOKEN_SECRET,
       {
         expiresIn: "30m",
@@ -100,15 +101,22 @@ app.post("/login", async (req, res) => {
   try {
     const userInfo = await User.findOne({ email: email });
 
+    console.log("User:" + userInfo);
+
     if (!userInfo) {
       return res.status(400).json({ message: "User not found" });
     }
 
     if (userInfo.email === email && userInfo.password === password) {
-      const user = { user: userInfo };
-      const accessToken = jwt.sign({ user }, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "36000m",
-      });
+      //const user = { user: userInfo };
+      //console.log("User Id:" + user._id);
+      const accessToken = jwt.sign(
+        { userId: userInfo._id.toString() },
+        process.env.ACCESS_TOKEN_SECRET,
+        {
+          expiresIn: "36000m",
+        }
+      );
 
       return res.json({
         error: false,
@@ -124,6 +132,46 @@ app.post("/login", async (req, res) => {
     }
   } catch (error) {
     console.error("Error during login:", error);
+    return res
+      .status(500)
+      .json({ error: true, message: "Internal Server Error" });
+  }
+});
+
+// Add Note
+app.post("/add-note", authenticateToken, async (req, res) => {
+  const { title, content, tags } = req.body;
+  const { userId } = req.user;
+
+  if (!title) {
+    return res.status(400).json({ error: true, message: "Title is required" });
+  }
+
+  if (!content) {
+    return res
+      .status(400)
+      .json({ error: true, message: "Content is required" });
+  }
+
+  try {
+    const note = new Note({
+      title,
+      content,
+      tags: tags || [],
+      userId: userId,
+    });
+
+    console.log(note);
+
+    await note.save();
+
+    return res.json({
+      error: false,
+      note,
+      message: "Note added successfully",
+    });
+  } catch (error) {
+    console.error("Error during note creation:", error);
     return res
       .status(500)
       .json({ error: true, message: "Internal Server Error" });
