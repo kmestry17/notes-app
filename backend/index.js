@@ -233,6 +233,32 @@ app.get("/get-all-notes", authenticateToken, async (req, res) => {
   }
 });
 
+// Delete Note
+app.delete("/delete-note/:noteId", authenticateToken, async (req, res) => {
+  const noteId = req.params.noteId;
+  const userId = req.user.userId;
+
+  try {
+    const note = await Note.findOne({ _id: noteId, userId });
+
+    if (!note) {
+      return res.status(404).json({ error: true, message: "Note not found" });
+    }
+
+    await Note.deleteOne({ _id: noteId, userId });
+
+    return res.json({
+      error: false,
+      message: "Note deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error during note deletion:", error);
+    return res
+      .status(500)
+      .json({ error: true, message: "Internal Server Error" });
+  }
+});
+
 app.listen(8000, () => {
   console.log("Server is running on port 8000");
 });
