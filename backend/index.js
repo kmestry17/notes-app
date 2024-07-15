@@ -101,15 +101,11 @@ app.post("/login", async (req, res) => {
   try {
     const userInfo = await User.findOne({ email: email });
 
-    console.log("User:" + userInfo);
-
     if (!userInfo) {
       return res.status(400).json({ message: "User not found" });
     }
 
     if (userInfo.email === email && userInfo.password === password) {
-      //const user = { user: userInfo };
-      //console.log("User Id:" + user._id);
       const accessToken = jwt.sign(
         { userId: userInfo._id.toString() },
         process.env.ACCESS_TOKEN_SECRET,
@@ -132,6 +128,35 @@ app.post("/login", async (req, res) => {
     }
   } catch (error) {
     console.error("Error during login:", error);
+    return res
+      .status(500)
+      .json({ error: true, message: "Internal Server Error" });
+  }
+});
+
+// Get User
+app.get("/get-user", authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+
+  try {
+    const isUser = await User.findOne({ _id: userId });
+
+    if (!isUser) {
+      return res.status(401);
+    }
+
+    return res.json({
+      error: false,
+      user: {
+        fullname: isUser.fullname,
+        email: isUser.email,
+        _id: isUser._id,
+        createdOn: isUser.createdOn,
+      },
+      message: "",
+    });
+  } catch (error) {
+    console.error("Error during fetching user:", error);
     return res
       .status(500)
       .json({ error: true, message: "Internal Server Error" });
@@ -272,7 +297,7 @@ app.put("/update-note-pinned/:noteId", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: true, message: "Note not found" });
     }
 
-    if (isPinned) note.isPinned = isPinned;
+    note.isPinned = isPinned;
 
     await note.save();
 
